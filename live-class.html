@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Class - EduPlatform</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        #videoContainer {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        .question-card {
+            background: white;
+            border-left: 4px solid #0d6efd;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body onload="loadLiveClass()">
+    <div class="container py-4">
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div id="videoContainer" class="ratio ratio-16x9"></div>
+            </div>
+            <div class="col-lg-4">
+                <div class="p-3 bg-white rounded-3 shadow-sm">
+                    <h5 class="mb-3">Live Q&A</h5>
+                    <div id="questionsContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbw_STKIeQHfgXd2UvVjkfB7eh8kiYkkuDl_Ucl50SuBTcE5GnIxs0k2itpLBtxORqmV/exec";
+        let refreshInterval;
+
+        async function loadLiveClass() {
+            // Check authentication
+            if(!sessionStorage.getItem('user')) window.location.href = 'index.html';
+
+            try {
+                const response = await fetch(`${GAS_URL}/live-class`);
+                const data = await response.json();
+                
+                document.getElementById('videoContainer').innerHTML = `
+                    <iframe src="${data.embedURL}?modestbranding=1&rel=0" 
+                            frameborder="0" 
+                            allow="accelerometer; autoplay; encrypted-media; gyroscope" 
+                            allowfullscreen></iframe>
+                `;
+
+                refreshInterval = setInterval(loadQuestions, 5000);
+            } catch (error) {
+                console.error('Live class error:', error);
+            }
+        }
+
+        async function loadQuestions() {
+            try {
+                const response = await fetch(`${GAS_URL}/questions`);
+                const questions = await response.json();
+                
+                const container = document.getElementById('questionsContainer');
+                container.innerHTML = questions.map(q => `
+                    <div class="question-card p-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <strong>${q.name}</strong>
+                            <small class="text-muted">${new Date(q.timestamp).toLocaleTimeString()}</small>
+                        </div>
+                        <p class="mb-0">${q.question}</p>
+                        ${q.answer ? `<div class="answer mt-2 p-2 bg-light">${q.answer}</div>` : ''}
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Q&A load error:', error);
+            }
+        }
+
+        // Cleanup on exit
+        window.addEventListener('beforeunload', () => {
+            clearInterval(refreshInterval);
+        });
+    </script>
+</body>
+</html>
